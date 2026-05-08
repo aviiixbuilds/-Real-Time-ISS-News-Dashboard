@@ -4,13 +4,23 @@ import { calculateSpeed } from '../utils/haversine';
 import { getNearestPlace } from '../utils/nominatim';
 import toast from 'react-hot-toast';
 
+const POSITIONS_CACHE_KEY = 'issPositionsCache';
+
 export function useISS() {
-  const [positions, setPositions] = useState([]);
+  const [positions, setPositions] = useState(() => {
+    const cached = localStorage.getItem(POSITIONS_CACHE_KEY);
+    return cached ? JSON.parse(cached) : [];
+  });
   const [astros, setAstros] = useState({ number: 0, people: [] });
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [nearestPlace, setNearestPlace] = useState("Loading...");
   const isFetching = useRef(false);
+
+  // Save to localStorage whenever positions change
+  useEffect(() => {
+    localStorage.setItem(POSITIONS_CACHE_KEY, JSON.stringify(positions));
+  }, [positions]);
 
   const fetchISSData = useCallback(async () => {
     if (isFetching.current) return false;
@@ -26,7 +36,6 @@ export function useISS() {
         longitude = res.data.longitude;
         timestamp = res.data.timestamp;
       } catch (err) {
-        console.warn("Primary ISS API failed, trying backup...");
         // Backup Attempt: Open-Notify via AllOrigins proxy
         const res = await axios.get('https://api.allorigins.win/get?url=' + encodeURIComponent('http://api.open-notify.org/iss-now.json'), { timeout: 8000 });
         const data = JSON.parse(res.data.contents);
@@ -45,6 +54,9 @@ export function useISS() {
         let speed = 27600;
         if (prev.length > 0) {
           const lastPos = prev[prev.length - 1];
+          // Ensure we don't add duplicate timestamps
+          if (lastPos.timestamp === timestamp) return prev;
+          
           const timeDiff = timestamp - lastPos.timestamp;
           if (timeDiff > 0) {
             speed = calculateSpeed(lastPos, newPos, timeDiff);
@@ -52,7 +64,9 @@ export function useISS() {
             speed = lastPos.speed || 27600;
           }
         }
-        return [...prev, { ...newPos, speed }].slice(-50);
+        
+        // Keep up to 100 points for better historical context in the graph
+        return [...prev, { ...newPos, speed }].slice(-100);
       });
 
       getNearestPlace(latitude, longitude).then(setNearestPlace).catch(() => setNearestPlace("Over ocean / remote area"));
@@ -75,24 +89,7 @@ export function useISS() {
         setAstros(data);
       }
     } catch {
-      // Fallback data
-      setAstros({
-        number: 12,
-        people: [
-          { name: "Oleg Kononenko", craft: "ISS" },
-          { name: "Nikolai Chub", craft: "ISS" },
-          { name: "Tracy Caldwell Dyson", craft: "ISS" },
-          { name: "Matthew Dominick", craft: "ISS" },
-          { name: "Michael Barratt", craft: "ISS" },
-          { name: "Jeanette Epps", craft: "ISS" },
-          { name: "Alexander Grebenkin", craft: "ISS" },
-          { name: "Butch Wilmore", craft: "ISS" },
-          { name: "Sunita Williams", craft: "ISS" },
-          { name: "Li Guangsu", craft: "Tiangong" },
-          { name: "Li Cong", craft: "Tiangong" },
-          { name: "Ye Guangfu", craft: "Tiangong" }
-        ]
-      });
+      setAstros({ number: 0, people: [] });
     }
   }, []);
 
@@ -110,7 +107,6 @@ export function useISS() {
   const refreshNow = () => {
     fetchISSData().then(success => {
       if (success) toast.success("ISS data refreshed");
-      else toast.error("Telemetery currently unavailable. Retrying...");
     });
     fetchAstros();
   };

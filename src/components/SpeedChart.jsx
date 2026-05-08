@@ -25,6 +25,7 @@ ChartJS.register(
 
 export default function SpeedChart({ positions }) {
   const chartData = useMemo(() => {
+    // Show last 30 measurements as requested
     const last30 = positions.slice(-30);
     const labels = last30.map(p => {
       const date = new Date(p.timestamp * 1000);
@@ -40,11 +41,13 @@ export default function SpeedChart({ positions }) {
           data: speeds,
           borderColor: '#ff4d4d',
           backgroundColor: 'rgba(255, 77, 77, 0.1)',
-          borderWidth: 2,
-          pointRadius: 0,
-          pointHoverRadius: 5,
+          borderWidth: 3,
+          pointRadius: 3,
+          pointBackgroundColor: '#ff4d4d',
+          pointBorderColor: '#fff',
+          pointHoverRadius: 6,
           fill: true,
-          tension: 0.1,
+          tension: 0.4, // Smoother curve like in the screenshot
         },
       ],
     };
@@ -57,39 +60,57 @@ export default function SpeedChart({ positions }) {
       legend: {
         display: true,
         position: 'top',
-        align: 'end',
+        align: 'center',
         labels: {
           boxWidth: 20,
           usePointStyle: true,
-          font: { size: 11 }
+          padding: 20,
+          font: { size: 12, weight: 'bold' },
+          color: '#666'
         }
       },
       tooltip: {
+        backgroundColor: 'rgba(0,0,0,0.8)',
+        padding: 12,
+        titleFont: { size: 14 },
+        bodyFont: { size: 13 },
+        cornerRadius: 8,
         mode: 'index',
         intersect: false,
       },
     },
     scales: {
       x: {
-        grid: { display: true, color: 'rgba(0,0,0,0.05)' },
+        grid: { display: true, color: 'rgba(0,0,0,0.05)', drawBorder: false },
         ticks: { 
           color: '#888', 
           font: { size: 10 },
           maxRotation: 45,
-          minRotation: 45
+          minRotation: 45,
+          autoSkip: true,
+          maxTicksLimit: 10
         }
       },
       y: {
-        grid: { display: true, color: 'rgba(0,0,0,0.05)' },
-        ticks: { color: '#888', font: { size: 10 } },
+        grid: { display: true, color: 'rgba(0,0,0,0.05)', drawBorder: false },
+        ticks: { 
+          color: '#888', 
+          font: { size: 10 },
+          padding: 10
+        },
         suggestedMin: 24000,
         suggestedMax: 26000,
       }
+    },
+    interaction: {
+      mode: 'nearest',
+      axis: 'x',
+      intersect: false
     }
   };
 
   return (
-    <div className="glass-card p-6 h-[500px] flex flex-col animate-fade-in">
+    <div className="glass-card p-6 h-[500px] flex flex-col animate-fade-in shadow-lg border border-white/20">
       <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">ISS Speed Trend</h3>
       <div className="flex-1 min-h-0">
         <Line data={chartData} options={options} />
