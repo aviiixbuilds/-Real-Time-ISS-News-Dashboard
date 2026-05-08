@@ -43,7 +43,7 @@ RULES:
 
 DATA:
 ISS: Lat ${currentPos?.lat}, Lng ${currentPos?.lng}, Speed ${currentPos?.speed} km/h, Place: ${nearestPlace}, People: ${astros.number}
-NEWS: ${articles.map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
+NEWS: ${articles.slice(0, 5).map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
   };
 
   const handleSubmit = async (e) => {
@@ -58,33 +58,16 @@ NEWS: ${articles.map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
     const systemPrompt = buildSystemPrompt();
     
     try {
-      const hfToken = import.meta.env.VITE_HF_TOKEN;
-      if (!hfToken) throw new Error("Hugging Face token missing");
-
-      // We use the direct Inference API as it is more stable for browser-based requests than the Router
-      const response = await axios.post(
-        'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2',
-        { 
-          inputs: `<s>[INST] ${systemPrompt}\n\nUser Question: ${input} [/INST]`,
-          parameters: {
-            max_new_tokens: 250,
-            temperature: 0.1,
-            return_full_text: false
-          }
-        },
-        { 
-          headers: { 
-            Authorization: `Bearer ${hfToken}`,
-            "Content-Type": "application/json",
-            "x-wait-for-model": "true"
-          } 
-        }
-      );
+      // Calling our local serverless function instead of external API directly
+      const response = await axios.post('/api/chat', { 
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: input }
+        ]
+      });
 
       let botResponse = "";
-      if (Array.isArray(response.data) && response.data[0].generated_text) {
-        botResponse = response.data[0].generated_text.trim();
-      } else if (response.data.choices) {
+      if (response.data && response.data.choices) {
         botResponse = response.data.choices[0].message.content.trim();
       } else {
         throw new Error("Invalid AI response format");
@@ -95,10 +78,10 @@ NEWS: ${articles.map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
       console.error("AI Error:", error);
       
       let errorMessage = "I only know dashboard data and the AI service is currently unavailable.";
-      if (error.response?.status === 401) {
-        errorMessage = "Error: Invalid Hugging Face Token. Please check your Vercel environment variables.";
+      if (error.response?.status === 500 && error.response?.data?.error === 'AI Token not configured on server') {
+        errorMessage = "Error: API token not found on server. Please check Vercel settings.";
       } else if (error.response?.status === 503) {
-        errorMessage = "The AI model is currently loading or overloaded. Please try again in a few seconds.";
+        errorMessage = "The AI model is currently busy. Please try again in a few seconds.";
       }
       
       setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
@@ -109,7 +92,6 @@ NEWS: ${articles.map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
 
   return (
     <>
-      {/* Floating Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-6 right-6 w-14 h-14 bg-[#ff4d4d] text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50 group"
@@ -117,10 +99,8 @@ NEWS: ${articles.map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
         {isOpen ? <X size={24} /> : <MessageSquare size={24} />}
       </button>
 
-      {/* Chat Panel */}
       {isOpen && (
         <div className="fixed bottom-24 right-6 w-[350px] sm:w-[400px] h-[500px] glass-card flex flex-col z-50 animate-fade-in overflow-hidden border-[#ff4d4d]/20 border-2 shadow-2xl">
-          {/* Header */}
           <div className="p-4 bg-[#ff4d4d] text-white flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bot size={20} />
@@ -131,7 +111,6 @@ NEWS: ${articles.map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
             </button>
           </div>
 
-          {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-navy-900">
             {messages.map((msg, i) => (
               <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -158,7 +137,6 @@ NEWS: ${articles.map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
           <form onSubmit={handleSubmit} className="p-3 bg-white dark:bg-navy-800 border-t border-gray-100 dark:border-gray-700">
             <div className="flex gap-2">
               <input 
