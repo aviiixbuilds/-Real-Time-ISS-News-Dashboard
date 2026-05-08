@@ -10,28 +10,39 @@ export function useISS() {
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [nearestPlace, setNearestPlace] = useState("Loading...");
-  
-  // Use a ref for the fetch lock and to track state without triggering hook re-renders
   const isFetching = useRef(false);
-  const lastFetchTime = useRef(0);
 
   const fetchISSData = useCallback(async () => {
-    // Basic rate limiting: don't fetch more than once every 5 seconds
-    const now = Date.now();
-    if (isFetching.current || (now - lastFetchTime.current < 5000)) return false;
-    
+    if (isFetching.current) return false;
     isFetching.current = true;
-    lastFetchTime.current = now;
 
     try {
-      // Primary API: WhereTheISS.at
-      const res = await axios.get('https://api.wheretheiss.at/v1/satellites/25544', { timeout: 8000 });
-      const { latitude, longitude, timestamp } = res.data;
+      let data;
+      try {
+        // Try direct first (supports CORS and HTTPS)
+        const response = await axios.get('https://api.wheretheiss.at/v1/satellites/25544', { timeout: 15000 });
+        data = {
+          iss_position: {
+            latitude: response.data.latitude,
+            longitude: response.data.longitude
+          },
+          timestamp: response.data.timestamp
+        };
+      } catch (e) {
+        console.warn("Direct ISS fetch failed, trying proxy...", e.message);
+        // Fallback to proxy
+        const PROXY = 'https://api.allorigins.win/get?url=';
+        const ISS_URL = PROXY + encodeURIComponent('http://api.open-notify.org/iss-now.json');
+        const response = await axios.get(ISS_URL, { timeout: 15000 });
+        data = JSON.parse(response.data.contents);
+      }
 
-      const newPos = { 
-        lat: parseFloat(latitude), 
-        lng: parseFloat(longitude), 
-        timestamp: timestamp 
+      const { iss_position, timestamp } = data;
+
+      const newPos = {
+        lat: parseFloat(iss_position.latitude),
+        lng: parseFloat(iss_position.longitude),
+        timestamp: timestamp
       };
 
       setPositions(prev => {
@@ -45,57 +56,58 @@ export function useISS() {
             speed = lastPos.speed || 27600;
           }
         }
-        // Requirement: last 15 for path, but we keep 50 for the chart
         return [...prev, { ...newPos, speed }].slice(-50);
       });
 
-      // Fetch place name (optional, don't let it block)
-      getNearestPlace(latitude, longitude).then(setNearestPlace).catch(() => setNearestPlace("Remote area"));
-      
+      getNearestPlace(newPos.lat, newPos.lng)
+        .then(setNearestPlace)
+        .catch(() => setNearestPlace("Over ocean / remote area"));
+
       setIsLoading(false);
       return true;
     } catch (error) {
-      console.error("ISS Fetch error:", error.response?.status === 429 ? "Rate limited" : error.message);
-      if (error.response?.status === 429) {
-        // If rate limited, wait longer
-        lastFetchTime.current = now + 10000; 
-      }
+      console.error("ISS Fetch error:", error.message);
       return false;
     } finally {
       isFetching.current = false;
     }
-  }, []); // Dependencies are empty now, so the function stays stable
+  }, []);
 
   const fetchAstros = useCallback(async () => {
     try {
-      const response = await axios.get('https://api.allorigins.win/get?url=' + encodeURIComponent('http://api.open-notify.org/astros.json'), { timeout: 10000 });
+      const PROXY = 'https://api.allorigins.win/get?url=';
+      const ASTROS_URL = PROXY + encodeURIComponent('http://api.open-notify.org/astros.json');
+      const response = await axios.get(ASTROS_URL, { timeout: 15000 });
       const data = JSON.parse(response.data.contents);
       if (data && data.people) {
         setAstros(data);
       }
-    } catch (error) {
+    } catch {
       setAstros({
-        number: 7,
+        number: 12,
         people: [
           { name: "Oleg Kononenko", craft: "ISS" },
           { name: "Nikolai Chub", craft: "ISS" },
-          { name: "Tracy Dyson", craft: "ISS" },
+          { name: "Tracy Caldwell Dyson", craft: "ISS" },
           { name: "Matthew Dominick", craft: "ISS" },
-          { name: "Mike Barratt", craft: "ISS" },
+          { name: "Michael Barratt", craft: "ISS" },
           { name: "Jeanette Epps", craft: "ISS" },
-          { name: "Alexander Grebenkin", craft: "ISS" }
+          { name: "Alexander Grebenkin", craft: "ISS" },
+          { name: "Butch Wilmore", craft: "ISS" },
+          { name: "Sunita Williams", craft: "ISS" },
+          { name: "Li Guangsu", craft: "Tiangong" },
+          { name: "Li Cong", craft: "Tiangong" },
+          { name: "Ye Guangfu", craft: "Tiangong" }
         ]
       });
     }
   }, []);
 
-  // Initial fetch
   useEffect(() => {
     fetchISSData();
     fetchAstros();
   }, [fetchISSData, fetchAstros]);
 
-  // Polling interval
   useEffect(() => {
     if (!isAutoRefresh) return;
     const interval = setInterval(fetchISSData, 15000);
@@ -104,9 +116,9 @@ export function useISS() {
 
   const refreshNow = () => {
     fetchISSData().then(success => {
-      if (success) toast.success("ISS telemetry updated");
-      else toast.error("Too many requests. Please wait.");
+      if (success) toast.success("ISS data refreshed");
     });
+    fetchAstros();
   };
 
   return {

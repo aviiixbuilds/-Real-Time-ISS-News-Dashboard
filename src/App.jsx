@@ -1,4 +1,3 @@
-// Deployment Fix: Updated ISS API to HTTPS/CORS compatible endpoint
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import ISSTracker from './components/ISSTracker';
@@ -21,7 +20,7 @@ function App() {
         <Header />
         
         <main className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Column */}
+          {/* Main Content Area (Left Column) */}
           <div className="lg:col-span-8 space-y-8">
             <section id="iss-tracking">
               <ISSTracker issData={issData} />
@@ -32,7 +31,7 @@ function App() {
             </section>
           </div>
 
-          {/* Right Column */}
+          {/* Sidebar Area (Right Column) */}
           <div className="lg:col-span-4 space-y-8">
             <section id="speed-trend">
               <SpeedChart positions={issData.positions} />

@@ -4,6 +4,7 @@ import L from 'leaflet';
 import { RefreshCw, MapPin, Zap, Navigation, History } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
+// Fix Leaflet marker icon issues
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -32,26 +33,24 @@ export default function ISSTracker({ issData }) {
 
   return (
     <div className="glass-card p-6 animate-fade-in">
-      {/* Header Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h2 className="text-xl font-bold text-gray-900 dark:text-white">ISS Live Tracking</h2>
         <div className="flex items-center gap-3">
           <button
             onClick={refreshNow}
-            className="px-4 py-1.5 bg-white dark:bg-navy-700 border border-gray-200 dark:border-gray-600 rounded-full text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-navy-600 transition-all flex items-center gap-2"
+            className="px-4 py-1.5 bg-white dark:bg-navy-700 border border-gray-200 dark:border-gray-600 rounded-full text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 transition-all flex items-center gap-2 shadow-sm"
           >
             <RefreshCw size={12} className={isLoading ? 'animate-spin' : ''} /> Refresh Now
           </button>
           <button
             onClick={() => setIsAutoRefresh(!isAutoRefresh)}
-            className="px-4 py-1.5 bg-white dark:bg-navy-700 border border-gray-200 dark:border-gray-600 rounded-full text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-navy-600 transition-all"
+            className="px-4 py-1.5 bg-white dark:bg-navy-700 border border-gray-200 dark:border-gray-600 rounded-full text-xs font-bold text-gray-700 dark:text-gray-200 hover:bg-gray-100 transition-all shadow-sm"
           >
             Auto-Refresh: {isAutoRefresh ? 'ON' : 'OFF'}
           </button>
         </div>
       </div>
 
-      {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="stat-card">
           <span className="accent-text flex items-center gap-1.5 mb-2"><MapPin size={10} /> Latitude / Longitude</span>
@@ -75,8 +74,7 @@ export default function ISSTracker({ issData }) {
         </div>
       </div>
 
-      {/* Map */}
-      <div className="relative h-[350px] rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700 mb-6">
+      <div className="relative h-[400px] rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700 mb-6 shadow-inner">
         {currentPos ? (
           <MapContainer center={[currentPos.lat, currentPos.lng]} zoom={3} className="h-full w-full" zoomControl={true}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors' />
@@ -98,16 +96,15 @@ export default function ISSTracker({ issData }) {
         )}
       </div>
 
-      {/* People in Space — compact row */}
-      <div className="border-t border-gray-100 dark:border-gray-700 pt-4">
-        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">
-          🧑‍🚀 People in Space: <span className="text-[#ff4d4d]">{astros.number}</span>
+      <div className="border-t border-gray-100 dark:border-gray-700 pt-6">
+        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
+          👨‍🚀 People in Space: <span className="text-[#ff4d4d]">{astros.number}</span>
         </h3>
         <div className="flex flex-wrap gap-2">
           {astros.people.map((p, i) => (
-            <span key={i} className="px-3 py-1.5 bg-white dark:bg-navy-900 border border-gray-100 dark:border-gray-800 rounded-full text-xs font-medium text-gray-700 dark:text-gray-300">
-              {p.name} <span className="text-gray-400">({p.craft})</span>
-            </span>
+            <div key={i} className="px-4 py-2 bg-white dark:bg-navy-900 border border-gray-200 dark:border-gray-800 rounded-full text-xs font-semibold text-gray-700 dark:text-gray-300 shadow-sm flex items-center gap-1 hover:border-red-200 transition-colors">
+              {p.name} <span className="text-gray-400 font-normal">({p.craft})</span>
+            </div>
           ))}
         </div>
       </div>
