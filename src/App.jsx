@@ -1,3 +1,4 @@
+// Deployment Fix: Updated ISS API to HTTPS/CORS compatible endpoint
 import { Toaster } from 'react-hot-toast';
 import Header from './components/Header';
 import ISSTracker from './components/ISSTracker';
