@@ -96,18 +96,6 @@ export default function ISSTracker({ issData }) {
         )}
       </div>
 
-      <div className="border-t border-gray-100 dark:border-gray-700 pt-6">
-        <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2">
-          👨‍🚀 People in Space: <span className="text-[#ff4d4d]">{astros.number}</span>
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {astros.people.map((p, i) => (
-            <div key={i} className="px-4 py-2 bg-white dark:bg-navy-900 border border-gray-200 dark:border-gray-800 rounded-full text-xs font-semibold text-gray-700 dark:text-gray-300 shadow-sm flex items-center gap-1 hover:border-red-200 transition-colors">
-              {p.name} <span className="text-gray-400 font-normal">({p.craft})</span>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

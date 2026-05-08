@@ -3,7 +3,6 @@ import Header from './components/Header';
 import ISSTracker from './components/ISSTracker';
 import NewsSection from './components/NewsSection';
 import SpeedChart from './components/SpeedChart';
-import NewsChart from './components/NewsChart';
 import ChatBot from './components/ChatBot';
 import { useISS } from './hooks/useISS';
 import { useNews } from './hooks/useNews';
@@ -20,7 +19,7 @@ function App() {
         <Header />
         
         <main className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
-          {/* Left Column */}
+          {/* Main Content Area (Left Column) */}
           <div className="lg:col-span-8 space-y-8">
             <section id="iss-tracking">
               <ISSTracker issData={issData} />
@@ -31,14 +30,13 @@ function App() {
             </section>
           </div>
 
-          {/* Right Column */}
+          {/* Sidebar Area (Right Column) */}
           <div className="lg:col-span-4 space-y-8">
             <section id="speed-trend">
               <SpeedChart positions={issData.positions} />
             </section>
-            <section id="news-distribution">
-              <NewsChart articles={newsData.articles} />
-            </section>
+            
+            {/* News Distribution Chart removed as requested */}
           </div>
         </main>
       </div>
