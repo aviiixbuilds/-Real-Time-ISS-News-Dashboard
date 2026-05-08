@@ -70,7 +70,7 @@ NEWS: ${articles.map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
         'https://router.huggingface.co/v1/chat/completions',
         { 
           messages: messagesBody,
-          model: "mistralai/Mistral-7B-Instruct-v0.2" 
+          model: "mistralai/Mistral-7B-Instruct-v0.2:featherless-ai" 
         },
         { 
           headers: { 
