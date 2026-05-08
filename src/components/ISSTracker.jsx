@@ -74,7 +74,7 @@ export default function ISSTracker({ issData }) {
         </div>
       </div>
 
-      <div className="relative h-[400px] rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700 mb-6 shadow-inner">
+      <div className="relative h-[500px] rounded-xl overflow-hidden border border-gray-100 dark:border-gray-700 mb-6 shadow-inner">
         {currentPos ? (
           <MapContainer center={[currentPos.lat, currentPos.lng]} zoom={3} className="h-full w-full" zoomControl={true}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; OpenStreetMap contributors' />
