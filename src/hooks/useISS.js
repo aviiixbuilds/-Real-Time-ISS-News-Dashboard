@@ -17,31 +17,13 @@ export function useISS() {
     isFetching.current = true;
 
     try {
-      let data;
-      try {
-        // Try direct first (supports CORS and HTTPS)
-        const response = await axios.get('https://api.wheretheiss.at/v1/satellites/25544', { timeout: 15000 });
-        data = {
-          iss_position: {
-            latitude: response.data.latitude,
-            longitude: response.data.longitude
-          },
-          timestamp: response.data.timestamp
-        };
-      } catch (e) {
-        console.warn("Direct ISS fetch failed, trying proxy...", e.message);
-        // Fallback to proxy
-        const PROXY = 'https://api.allorigins.win/get?url=';
-        const ISS_URL = PROXY + encodeURIComponent('http://api.open-notify.org/iss-now.json');
-        const response = await axios.get(ISS_URL, { timeout: 15000 });
-        data = JSON.parse(response.data.contents);
-      }
-
-      const { iss_position, timestamp } = data;
+      // Direct HTTPS API - No mixed content issues
+      const res = await axios.get('https://api.wheretheiss.at/v1/satellites/25544', { timeout: 10000 });
+      const { latitude, longitude, timestamp } = res.data;
 
       const newPos = {
-        lat: parseFloat(iss_position.latitude),
-        lng: parseFloat(iss_position.longitude),
+        lat: parseFloat(latitude),
+        lng: parseFloat(longitude),
         timestamp: timestamp
       };
 
@@ -59,10 +41,9 @@ export function useISS() {
         return [...prev, { ...newPos, speed }].slice(-50);
       });
 
-      getNearestPlace(newPos.lat, newPos.lng)
-        .then(setNearestPlace)
-        .catch(() => setNearestPlace("Over ocean / remote area"));
-
+      // Non-blocking reverse geocode
+      getNearestPlace(latitude, longitude).then(setNearestPlace).catch(() => setNearestPlace("Over ocean / remote area"));
+      
       setIsLoading(false);
       return true;
     } catch (error) {
@@ -71,18 +52,17 @@ export function useISS() {
     } finally {
       isFetching.current = false;
     }
-  }, []);
+  }, []); // Stable callback
 
   const fetchAstros = useCallback(async () => {
     try {
-      const PROXY = 'https://api.allorigins.win/get?url=';
-      const ASTROS_URL = PROXY + encodeURIComponent('http://api.open-notify.org/astros.json');
-      const response = await axios.get(ASTROS_URL, { timeout: 15000 });
-      const data = JSON.parse(response.data.contents);
+      const res = await axios.get('https://api.allorigins.win/get?url=' + encodeURIComponent('http://api.open-notify.org/astros.json'));
+      const data = JSON.parse(res.data.contents);
       if (data && data.people) {
         setAstros(data);
       }
     } catch {
+      // Robust fallback if proxy fails
       setAstros({
         number: 12,
         people: [
@@ -104,7 +84,6 @@ export function useISS() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchISSData();
     fetchAstros();
   }, [fetchISSData, fetchAstros]);
@@ -118,6 +97,7 @@ export function useISS() {
   const refreshNow = () => {
     fetchISSData().then(success => {
       if (success) toast.success("ISS data refreshed");
+      else toast.error("Too many requests. Please wait.");
     });
     fetchAstros();
   };

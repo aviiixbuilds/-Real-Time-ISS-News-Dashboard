@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, RefreshCw, ExternalLink } from 'lucide-react';
 
 export default function NewsSection({ newsData }) {
-  const { articles, isLoading, refreshNews } = newsData;
+  const { articles, isLoading, error, refreshNews } = newsData;
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('date');
   const [expandedIndex, setExpandedIndex] = useState(null);

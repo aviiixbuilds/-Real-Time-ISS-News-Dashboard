@@ -19,8 +19,8 @@ function App() {
       <div className="max-w-[1600px] mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <Header />
         
-        <main className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Main Content Area (Left Column) */}
+        <main className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-8">
+          {/* Left Column */}
           <div className="lg:col-span-8 space-y-8">
             <section id="iss-tracking">
               <ISSTracker issData={issData} />
@@ -31,7 +31,7 @@ function App() {
             </section>
           </div>
 
-          {/* Sidebar Area (Right Column) */}
+          {/* Right Column */}
           <div className="lg:col-span-4 space-y-8">
             <section id="speed-trend">
               <SpeedChart positions={issData.positions} />
