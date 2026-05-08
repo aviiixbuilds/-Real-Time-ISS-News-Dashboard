@@ -4,9 +4,6 @@ import { calculateSpeed } from '../utils/haversine';
 import { getNearestPlace } from '../utils/nominatim';
 import toast from 'react-hot-toast';
 
-// Use Vite proxy in dev for open-notify
-const ISS_PROXY = import.meta.env.DEV ? '/api/iss' : 'http://api.open-notify.org';
-
 export function useISS() {
   const [positions, setPositions] = useState([]);
   const [astros, setAstros] = useState({ number: 0, people: [] });
@@ -16,27 +13,19 @@ export function useISS() {
   const isFetching = useRef(false);
 
   const fetchISSData = useCallback(async () => {
-    if (isFetching.current) return false; // prevent overlapping calls
+    if (isFetching.current) return false;
     isFetching.current = true;
 
     try {
-      let lat, lng, timestamp;
+      // Using WhereTheISS.at API which supports HTTPS and CORS (unlike open-notify)
+      const res = await axios.get('https://api.wheretheiss.at/v1/satellites/25544', { timeout: 10000 });
+      const { latitude, longitude, timestamp } = res.data;
 
-      // Try WhereTheISS.at first (supports HTTPS + CORS natively)
-      try {
-        const res = await axios.get('https://api.wheretheiss.at/v1/satellites/25544', { timeout: 5000 });
-        lat = res.data.latitude;
-        lng = res.data.longitude;
-        timestamp = Math.floor(res.data.timestamp);
-      } catch {
-        // Fallback to open-notify via Vite proxy
-        const res = await axios.get(`${ISS_PROXY}/iss-now.json`, { timeout: 5000 });
-        lat = parseFloat(res.data.iss_position.latitude);
-        lng = parseFloat(res.data.iss_position.longitude);
-        timestamp = res.data.timestamp;
-      }
-
-      const newPos = { lat, lng, timestamp };
+      const newPos = { 
+        lat: parseFloat(latitude), 
+        lng: parseFloat(longitude), 
+        timestamp: timestamp 
+      };
 
       setPositions(prev => {
         let speed = 27600;
@@ -52,27 +41,30 @@ export function useISS() {
         return [...prev, { ...newPos, speed }].slice(-50);
       });
 
-      const place = await getNearestPlace(lat, lng);
+      const place = await getNearestPlace(latitude, longitude);
       setNearestPlace(place);
       setIsLoading(false);
       return true;
     } catch (error) {
       console.error("ISS Fetch error:", error.message);
-      if (!positions.length) toast.error("Failed to fetch ISS position — retrying...");
+      // Only show toast error if we have no data at all
       return false;
     } finally {
       isFetching.current = false;
     }
-  }, [positions.length]);
+  }, []);
 
   const fetchAstros = useCallback(async () => {
     try {
-      const response = await axios.get(`${ISS_PROXY}/astros.json`, { timeout: 5000 });
-      if (response.data && response.data.people) {
-        setAstros(response.data);
+      // open-notify doesn't support HTTPS well. We try with a CORS proxy or direct HTTP (might be blocked)
+      // For Vercel (HTTPS), we use a public proxy if needed, or stick to fallback if blocked.
+      const response = await axios.get('https://api.allorigins.win/get?url=' + encodeURIComponent('http://api.open-notify.org/astros.json'), { timeout: 10000 });
+      const data = JSON.parse(response.data.contents);
+      if (data && data.people) {
+        setAstros(data);
       }
-    } catch {
-      console.error("Astros API unavailable, using fallback.");
+    } catch (error) {
+      console.error("Astros API error, using fallback.");
       setAstros({
         number: 7,
         people: [
@@ -89,7 +81,6 @@ export function useISS() {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchISSData();
     fetchAstros();
   }, [fetchISSData, fetchAstros]);
