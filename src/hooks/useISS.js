@@ -10,15 +10,22 @@ export function useISS() {
   const [isAutoRefresh, setIsAutoRefresh] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [nearestPlace, setNearestPlace] = useState("Loading...");
+  
+  // Use a ref for the fetch lock and to track state without triggering hook re-renders
   const isFetching = useRef(false);
+  const lastFetchTime = useRef(0);
 
   const fetchISSData = useCallback(async () => {
-    if (isFetching.current) return false;
+    // Basic rate limiting: don't fetch more than once every 5 seconds
+    const now = Date.now();
+    if (isFetching.current || (now - lastFetchTime.current < 5000)) return false;
+    
     isFetching.current = true;
+    lastFetchTime.current = now;
 
     try {
-      // Using WhereTheISS.at API which supports HTTPS and CORS (unlike open-notify)
-      const res = await axios.get('https://api.wheretheiss.at/v1/satellites/25544', { timeout: 10000 });
+      // Primary API: WhereTheISS.at
+      const res = await axios.get('https://api.wheretheiss.at/v1/satellites/25544', { timeout: 8000 });
       const { latitude, longitude, timestamp } = res.data;
 
       const newPos = { 
@@ -38,33 +45,35 @@ export function useISS() {
             speed = lastPos.speed || 27600;
           }
         }
+        // Requirement: last 15 for path, but we keep 50 for the chart
         return [...prev, { ...newPos, speed }].slice(-50);
       });
 
-      const place = await getNearestPlace(latitude, longitude);
-      setNearestPlace(place);
+      // Fetch place name (optional, don't let it block)
+      getNearestPlace(latitude, longitude).then(setNearestPlace).catch(() => setNearestPlace("Remote area"));
+      
       setIsLoading(false);
       return true;
     } catch (error) {
-      console.error("ISS Fetch error:", error.message);
-      // Only show toast error if we have no data at all
+      console.error("ISS Fetch error:", error.response?.status === 429 ? "Rate limited" : error.message);
+      if (error.response?.status === 429) {
+        // If rate limited, wait longer
+        lastFetchTime.current = now + 10000; 
+      }
       return false;
     } finally {
       isFetching.current = false;
     }
-  }, []);
+  }, []); // Dependencies are empty now, so the function stays stable
 
   const fetchAstros = useCallback(async () => {
     try {
-      // open-notify doesn't support HTTPS well. We try with a CORS proxy or direct HTTP (might be blocked)
-      // For Vercel (HTTPS), we use a public proxy if needed, or stick to fallback if blocked.
       const response = await axios.get('https://api.allorigins.win/get?url=' + encodeURIComponent('http://api.open-notify.org/astros.json'), { timeout: 10000 });
       const data = JSON.parse(response.data.contents);
       if (data && data.people) {
         setAstros(data);
       }
     } catch (error) {
-      console.error("Astros API error, using fallback.");
       setAstros({
         number: 7,
         people: [
@@ -80,24 +89,24 @@ export function useISS() {
     }
   }, []);
 
+  // Initial fetch
   useEffect(() => {
     fetchISSData();
     fetchAstros();
   }, [fetchISSData, fetchAstros]);
 
+  // Polling interval
   useEffect(() => {
-    let interval;
-    if (isAutoRefresh) {
-      interval = setInterval(fetchISSData, 15000);
-    }
+    if (!isAutoRefresh) return;
+    const interval = setInterval(fetchISSData, 15000);
     return () => clearInterval(interval);
   }, [isAutoRefresh, fetchISSData]);
 
   const refreshNow = () => {
     fetchISSData().then(success => {
-      if (success) toast.success("ISS data refreshed");
+      if (success) toast.success("ISS telemetry updated");
+      else toast.error("Too many requests. Please wait.");
     });
-    fetchAstros();
   };
 
   return {
