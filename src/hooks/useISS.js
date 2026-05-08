@@ -17,9 +17,23 @@ export function useISS() {
     isFetching.current = true;
 
     try {
-      // Direct HTTPS API - No mixed content issues
-      const res = await axios.get('https://api.wheretheiss.at/v1/satellites/25544', { timeout: 10000 });
-      const { latitude, longitude, timestamp } = res.data;
+      let latitude, longitude, timestamp;
+
+      // Primary Attempt: WhereTheISS.at (Native HTTPS)
+      try {
+        const res = await axios.get('https://api.wheretheiss.at/v1/satellites/25544', { timeout: 8000 });
+        latitude = res.data.latitude;
+        longitude = res.data.longitude;
+        timestamp = res.data.timestamp;
+      } catch (err) {
+        console.warn("Primary ISS API failed, trying backup...");
+        // Backup Attempt: Open-Notify via AllOrigins proxy
+        const res = await axios.get('https://api.allorigins.win/get?url=' + encodeURIComponent('http://api.open-notify.org/iss-now.json'), { timeout: 8000 });
+        const data = JSON.parse(res.data.contents);
+        latitude = data.iss_position.latitude;
+        longitude = data.iss_position.longitude;
+        timestamp = data.timestamp;
+      }
 
       const newPos = {
         lat: parseFloat(latitude),
@@ -41,7 +55,6 @@ export function useISS() {
         return [...prev, { ...newPos, speed }].slice(-50);
       });
 
-      // Non-blocking reverse geocode
       getNearestPlace(latitude, longitude).then(setNearestPlace).catch(() => setNearestPlace("Over ocean / remote area"));
       
       setIsLoading(false);
@@ -52,7 +65,7 @@ export function useISS() {
     } finally {
       isFetching.current = false;
     }
-  }, []); // Stable callback
+  }, []);
 
   const fetchAstros = useCallback(async () => {
     try {
@@ -62,7 +75,7 @@ export function useISS() {
         setAstros(data);
       }
     } catch {
-      // Robust fallback if proxy fails
+      // Fallback data
       setAstros({
         number: 12,
         people: [
@@ -97,7 +110,7 @@ export function useISS() {
   const refreshNow = () => {
     fetchISSData().then(success => {
       if (success) toast.success("ISS data refreshed");
-      else toast.error("Too many requests. Please wait.");
+      else toast.error("Telemetery currently unavailable. Retrying...");
     });
     fetchAstros();
   };
