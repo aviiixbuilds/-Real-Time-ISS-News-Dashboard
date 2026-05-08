@@ -64,7 +64,10 @@ NEWS: ${articles.map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
 
     try {
       const hfToken = import.meta.env.VITE_HF_TOKEN;
-      if (!hfToken) throw new Error("Hugging Face token missing");
+      if (!hfToken) {
+        console.error("VITE_HF_TOKEN is missing in environment variables");
+        throw new Error("Hugging Face token missing");
+      }
 
       const response = await axios.post(
         'https://router.huggingface.co/v1/chat/completions',
