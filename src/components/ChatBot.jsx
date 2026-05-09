@@ -64,29 +64,22 @@ NEWS: ${articles.slice(0, 5).map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
         throw new Error("401: Hugging Face token missing in Vercel settings.");
       }
 
-      const combinedPrompt = `${systemPrompt}\n\nUser Question: ${input}`;
-
-      const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${hfToken}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model: "mistralai/Mistral-7B-Instruct-v0.2:featherless-ai",
-          messages: [
-            { role: "user", content: combinedPrompt }
-          ],
-          max_tokens: 500
-        })
+      const client = new OpenAI({
+        baseURL: "https://router.huggingface.co/v1",
+        apiKey: hfToken,
+        dangerouslyAllowBrowser: true
       });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`${response.status}: ${errorText}`);
-      }
+      const combinedPrompt = `${systemPrompt}\n\nUser Question: ${input}`;
 
-      const chatCompletion = await response.json();
+      const chatCompletion = await client.chat.completions.create({
+        // Using the base model as specified in the assignment text to avoid third-party provider bugs
+        model: "mistralai/Mistral-7B-Instruct-v0.2",
+        messages: [
+          { role: "user", content: combinedPrompt }
+        ],
+        max_tokens: 500
+      });
 
       let botResponse = "I couldn't process that request.";
       if (chatCompletion.choices && chatCompletion.choices.length > 0) {
