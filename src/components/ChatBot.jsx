@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { OpenAI } from "openai";
 import { MessageSquare, X, Send, Trash2, Bot, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -58,19 +58,30 @@ NEWS: ${articles.slice(0, 5).map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
     const systemPrompt = buildSystemPrompt();
     
     try {
-      // Calling our local serverless function instead of external API directly
-      const response = await axios.post('/api/chat', { 
+      // Use the token from environment variables (must be set in Vercel)
+      const hfToken = import.meta.env.VITE_HF_TOKEN;
+
+      if (!hfToken) {
+        throw new Error("401: Hugging Face token missing in Vercel settings.");
+      }
+
+      const client = new OpenAI({
+        baseURL: "https://router.huggingface.co/v1",
+        apiKey: hfToken,
+        dangerouslyAllowBrowser: true // Required to run OpenAI SDK in the browser
+      });
+
+      const chatCompletion = await client.chat.completions.create({
+        model: "mistralai/Mistral-7B-Instruct-v0.2:featherless-ai",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: input }
-        ]
+        ],
       });
 
-      let botResponse = "";
-      if (response.data && response.data.choices) {
-        botResponse = response.data.choices[0].message.content.trim();
-      } else {
-        throw new Error("Invalid AI response format");
+      let botResponse = "I couldn't process that request.";
+      if (chatCompletion.choices && chatCompletion.choices.length > 0) {
+        botResponse = chatCompletion.choices[0].message.content.trim();
       }
 
       setMessages(prev => [...prev, { role: 'assistant', content: botResponse }]);
@@ -78,9 +89,9 @@ NEWS: ${articles.slice(0, 5).map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
       console.error("AI Error:", error);
       
       let errorMessage = "I only know dashboard data and the AI service is currently unavailable.";
-      if (error.response?.status === 500 && error.response?.data?.error === 'AI Token not configured on server') {
-        errorMessage = "Error: API token not found on server. Please check Vercel settings.";
-      } else if (error.response?.status === 503) {
+      if (error.message?.includes('401')) {
+        errorMessage = "Error: Invalid Hugging Face Token.";
+      } else if (error.message?.includes('503')) {
         errorMessage = "The AI model is currently busy. Please try again in a few seconds.";
       }
       
