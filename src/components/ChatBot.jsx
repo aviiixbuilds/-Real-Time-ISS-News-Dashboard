@@ -72,14 +72,27 @@ NEWS: ${articles.slice(0, 5).map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
 
       const combinedPrompt = `${systemPrompt}\n\nUser Question: ${input}`;
 
-      const chatCompletion = await client.chat.completions.create({
-        // Using the base model as specified in the assignment text to avoid third-party provider bugs
-        model: "mistralai/Mistral-7B-Instruct-v0.2",
-        messages: [
-          { role: "user", content: combinedPrompt }
-        ],
-        max_tokens: 500
+      const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${hfToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "mistralai/Mistral-7B-Instruct-v0.2:featherless-ai",
+          messages: [
+            { role: "user", content: combinedPrompt }
+          ],
+          max_tokens: 500
+        })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`${response.status} ${errorData.error || response.statusText}`);
+      }
+
+      const chatCompletion = await response.json();
 
       let botResponse = "I couldn't process that request.";
       if (chatCompletion.choices && chatCompletion.choices.length > 0) {
