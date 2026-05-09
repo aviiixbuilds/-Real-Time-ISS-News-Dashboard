@@ -78,6 +78,7 @@ NEWS: ${articles.slice(0, 5).map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
         messages: [
           { role: "user", content: combinedPrompt }
         ],
+        max_tokens: 500,
       });
 
       let botResponse = "I couldn't process that request.";
