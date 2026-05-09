@@ -58,28 +58,35 @@ NEWS: ${articles.slice(0, 5).map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
     const systemPrompt = buildSystemPrompt();
     
     try {
-      // Use the token from environment variables (must be set in Vercel)
       const hfToken = import.meta.env.VITE_HF_TOKEN;
 
       if (!hfToken) {
         throw new Error("401: Hugging Face token missing in Vercel settings.");
       }
 
-      const client = new OpenAI({
-        baseURL: "https://router.huggingface.co/v1",
-        apiKey: hfToken,
-        dangerouslyAllowBrowser: true
-      });
-
       const combinedPrompt = `${systemPrompt}\n\nUser Question: ${input}`;
 
-      const chatCompletion = await client.chat.completions.create({
-        model: "mistralai/Mistral-7B-Instruct-v0.2:featherless-ai",
-        messages: [
-          { role: "user", content: combinedPrompt }
-        ],
-        max_tokens: 500,
+      const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${hfToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "mistralai/Mistral-7B-Instruct-v0.2:featherless-ai",
+          messages: [
+            { role: "user", content: combinedPrompt }
+          ],
+          max_tokens: 500
+        })
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`${response.status}: ${errorText}`);
+      }
+
+      const chatCompletion = await response.json();
 
       let botResponse = "I couldn't process that request.";
       if (chatCompletion.choices && chatCompletion.choices.length > 0) {
