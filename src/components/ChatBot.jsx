@@ -68,14 +68,15 @@ NEWS: ${articles.slice(0, 5).map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
       const client = new OpenAI({
         baseURL: "https://router.huggingface.co/v1",
         apiKey: hfToken,
-        dangerouslyAllowBrowser: true // Required to run OpenAI SDK in the browser
+        dangerouslyAllowBrowser: true
       });
+
+      const combinedPrompt = `${systemPrompt}\n\nUser Question: ${input}`;
 
       const chatCompletion = await client.chat.completions.create({
         model: "mistralai/Mistral-7B-Instruct-v0.2:featherless-ai",
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: input }
+          { role: "user", content: combinedPrompt }
         ],
       });
 
@@ -88,12 +89,7 @@ NEWS: ${articles.slice(0, 5).map((a, i) => `${i+1}. ${a.title}`).join(' | ')}`;
     } catch (error) {
       console.error("AI Error:", error);
       
-      let errorMessage = "I only know dashboard data and the AI service is currently unavailable.";
-      if (error.message?.includes('401')) {
-        errorMessage = "Error: Invalid Hugging Face Token.";
-      } else if (error.message?.includes('503')) {
-        errorMessage = "The AI model is currently busy. Please try again in a few seconds.";
-      }
+      let errorMessage = `AI Service Error: ${error.message}`;
       
       setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
     } finally {
